@@ -60,19 +60,41 @@ contract MoodNFT is ERC721, Ownable, ReentrancyGuard {
         return _tokenMoods[tokenId];
     }
 
-        function tokenURI(uint256 tokenId) public view override returns (string memory) {
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireOwned(tokenId);
         
-        // L'URL pointera vers ton API Next.js qui génère l'image selon l'humeur
         string memory baseURL = "https://ton-app.vercel.app/api/metadata/";
         Mood mood = _tokenMoods[tokenId];
         
         return string(abi.encodePacked(baseURL, _toString(tokenId), "?mood=", _toString(uint256(mood))));
     }
 
-    
+    function getTokenIdByAddress(address user) public view returns (uint256) {
+        require(hasMinted[user], "User has no NFT");
+        return userTokenId[user];
+    }
 
     function totalSupply() public view returns (uint256) {
         return tokenCounter;
     }
+
+    function _toString(uint256 value) internal pure returns (string memory) {
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
+
 }
