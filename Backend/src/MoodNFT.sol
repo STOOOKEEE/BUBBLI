@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 
 contract MoodNFT is ERC721, Ownable, ReentrancyGuard {
 
@@ -26,27 +27,27 @@ contract MoodNFT is ERC721, Ownable, ReentrancyGuard {
 
     constructor() ERC721("Mood", "MNFT") Ownable(msg.sender) {}
 
-    function mintNFT(address user, Mood mood = Mood.HAPPY) public onlyOwner nonReentrant returns (uint256) {
+    function mintNFT(address user, Mood mood) public onlyOwner nonReentrant returns (uint256) {
         require(!hasMinted[user], "User has already minted an NFT");
         require(user != address(0), "Invalid address");
 
         uint256 newItemId = tokenCounter;
-        tokenCounter ++;
+        tokenCounter++;
 
+        hasMinted[user] = true;
+        userTokenId[user] = newItemId;
         _tokenMoods[newItemId] = mood;
 
         _safeMint(user, newItemId);
-        userTokenId[user] = newItemId;
-        hasMinted[user] = true;
 
         emit NFTMinted(user, newItemId);
         return newItemId;
-    }
+}
 
-    function changeMood(address user, Mood newMood) public onlyOwner nonReentrant {
-        require(hasMinted[user], "User has not minted an NFT");
-        uint256 tokenId = userTokenId[user];
-        require(ownerOf(tokenId) == msg.sender, "Not the owner");
+
+    function changeMood(Mood newMood) public nonReentrant {
+        require(hasMinted[msg.sender], "User has not minted an NFT");
+        uint256 tokenId = userTokenId[msg.sender];
 
         Mood oldMood = _tokenMoods[tokenId];
         require(oldMood != newMood, "New mood must be different from the current mood");
@@ -56,14 +57,14 @@ contract MoodNFT is ERC721, Ownable, ReentrancyGuard {
     }
 
     function getMood(uint256 tokenId) public view returns (Mood) {
-        require(_exists(tokenId), "Token does not exist");
+        _requireOwned(tokenId);
         return _tokenMoods[tokenId];
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireOwned(tokenId);
         
-        string memory baseURL = "https://ton-app.vercel.app/api/metadata/";
+        string memory baseURL = "";
         Mood mood = _tokenMoods[tokenId];
         
         return string(abi.encodePacked(baseURL, _toString(tokenId), "?mood=", _toString(uint256(mood))));
@@ -91,6 +92,7 @@ contract MoodNFT is ERC721, Ownable, ReentrancyGuard {
         bytes memory buffer = new bytes(digits);
         while (value != 0) {
             digits -= 1;
+            // forge-lint: disable-next-line(unsafe-typecast)
             buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
             value /= 10;
         }
